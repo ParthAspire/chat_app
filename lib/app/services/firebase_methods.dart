@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
@@ -7,6 +8,7 @@ Future<User?> createAccount({
   required String email,
   required String password,
 }) async {
+  FirebaseFirestore firestore = FirebaseFirestore.instance;
   FirebaseAuth auth = FirebaseAuth.instance;
 
   try {
@@ -14,7 +16,10 @@ Future<User?> createAccount({
             email: email, password: password))
         .user;
     if (user != null) {
-      print('user created');
+      await firestore
+          .collection('users')
+          .doc(auth.currentUser?.uid)
+          .set({"name": name, "email": email, "status": "unavailable"});
       return user;
     } else {
       print('user not created');

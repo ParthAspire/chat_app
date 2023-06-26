@@ -75,12 +75,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           email: email.text,
                           password: password.text)
                       .then(
-                    (value) => Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => LoginScreen(),
-                        ),
-                        (route) => false),
+                    (value) {
+                      if(value!=null){
+                        Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LoginScreen(),
+                            ),
+                                (route) => false);
+                      }
+                    },
                   );
                 },
                 buttonTxt: 'Create Account'.toUpperCase(),
