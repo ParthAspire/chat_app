@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 Widget commonButton({
   required Function onPress,
   required String buttonTxt,
+  Color bgColor = Colors.black,
+  Color borderColor = Colors.white,
+  TextStyle textStyle = const TextStyle(fontSize: 20, color: Colors.white),
   double width = 250,
   double height = 40,
 }) {
@@ -16,12 +19,13 @@ Widget commonButton({
       height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.black,
-          border: Border.all(color: Colors.white)),
+        borderRadius: BorderRadius.circular(8),
+        color: bgColor,
+        border: Border.all(color: borderColor),
+      ),
       child: Text(
         buttonTxt,
-        style: TextStyle(fontSize: 20, color: Colors.white),
+        style: textStyle,
       ),
     ),
   );
