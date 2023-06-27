@@ -16,6 +16,7 @@ Future<User?> createAccount({
             email: email, password: password))
         .user;
     if (user != null) {
+      user.updateDisplayName(name);
       await firestore
           .collection('users')
           .doc(auth.currentUser?.uid)
