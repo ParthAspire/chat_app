@@ -1,6 +1,13 @@
+import 'dart:io';
+
+import 'package:chat_app/app/screens/chat/received_message_ui.dart';
+import 'package:chat_app/app/screens/chat/send_message_ui.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
 class ChatRoom extends StatelessWidget {
   final Map<String, dynamic> userMap;
@@ -12,12 +19,67 @@ class ChatRoom extends StatelessWidget {
   FirebaseFirestore firestore = FirebaseFirestore.instance;
   FirebaseAuth auth = FirebaseAuth.instance;
 
+  File? imageFile;
+
+  getImage() async {
+    ImagePicker picker = ImagePicker();
+
+    await picker.pickImage(source: ImageSource.gallery).then((img) {
+      if (img != null) {
+        imageFile = File(img.path);
+        uploadImage();
+      }
+    });
+  }
+
+  Future uploadImage() async {
+    String fileName = Uuid().v1();
+    int status = 1;
+
+    await firestore
+        .collection('chatroom')
+        .doc(chatRoomId)
+        .collection('chats')
+        .doc(fileName)
+        .set({
+      'sendBy': auth.currentUser?.displayName,
+      'message': '',
+      "type": "img",
+      'time': FieldValue.serverTimestamp(),
+    });
+
+    var ref =
+        FirebaseStorage.instance.ref().child('image').child('$fileName.jpg');
+
+    var uploadImage = await ref.putFile(imageFile!).catchError((error) async {
+      await firestore
+          .collection('chatroom')
+          .doc(chatRoomId)
+          .collection('chats')
+          .doc(fileName)
+          .delete();
+      status = 0;
+    });
+
+    if (status == 1) {
+      String imageUrl = await uploadImage.ref.getDownloadURL();
+
+      await firestore
+          .collection('chatroom')
+          .doc(chatRoomId)
+          .collection('chats')
+          .doc(fileName)
+          .update({'message': imageUrl});
+    }
+  }
+
   onSendMessage() async {
     try {
       if (message.text.trim().isNotEmpty) {
         Map<String, dynamic> messages = {
           'sendBy': auth.currentUser?.displayName,
           'message': message.text.trim(),
+          "type": "text",
           'time': FieldValue.serverTimestamp(),
         };
         message.clear();
@@ -40,97 +102,323 @@ class ChatRoom extends StatelessWidget {
         FocusScope.of(context).unfocus();
       },
       child: Scaffold(
+        // backgroundColor: Colors.grey[200],
         backgroundColor: Colors.white,
         appBar: AppBar(
-          title: Text(userMap['name']),
+          title: StreamBuilder(
+            stream:
+                firestore.collection('users').doc(userMap['uid']).snapshots(),
+            builder: (context, snapshot) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(snapshot.data?['name'] ?? ''),
+                  Text(
+                    snapshot.data?['status'] ?? '',
+                    style: TextStyle(
+                        color: snapshot.data?['status'] == 'Online'
+                            ? Colors.green
+                            : Colors.red,
+                        fontSize: 12),
+                  ),
+                ],
+              );
+            },
+          ),
           backgroundColor: Colors.black,
         ),
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              Container(
-                height: MediaQuery.of(context).size.height * 0.8,
-                child: StreamBuilder(
-                  stream: firestore
-                      .collection('chatroom')
-                      .doc(chatRoomId)
-                      .collection('chats')
-                      .orderBy('time', descending: true)
-                      .snapshots(),
-                  builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                    if (snapshot.data != null) {
-                      return ListView.builder(
-                        reverse: true,
-                        padding: EdgeInsets.only(top: 10),
-                        itemCount: snapshot.data?.docs.reversed.length,
-                        itemBuilder: (context, index) {
-                          Map<String, dynamic> map = snapshot.data?.docs[index]
-                              .data() as Map<String, dynamic>;
-                          return messageView(size: size, map: map);
-                          // return Text(snapshot.data?.docs[index]['message']);
+        body: auth.currentUser == null
+            ? Center(
+                child: CircularProgressIndicator(color: Colors.black),
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Container(
+                      height: MediaQuery.of(context).size.height * 0.8,
+                      child: StreamBuilder(
+                        stream: firestore
+                            .collection('chatroom')
+                            .doc(chatRoomId)
+                            .collection('chats')
+                            .orderBy('time', descending: true)
+                            .snapshots(),
+                        builder:
+                            (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                          if (snapshot.data != null) {
+                            return ListView.builder(
+                              reverse: true,
+                              padding: EdgeInsets.only(top: 10),
+                              itemCount: snapshot.data?.docs.reversed.length,
+                              itemBuilder: (context, index) {
+                                Map<String, dynamic> map =
+                                    snapshot.data?.docs[index].data()
+                                        as Map<String, dynamic>;
+                                return messageView(
+                                    size: size,
+                                    messageId:
+                                        snapshot.data?.docs[index].id ?? '',
+                                    map: map,
+                                    context: context);
+                              },
+                            );
+                          } else {
+                            return Container();
+                          }
                         },
-                      );
-                    } else {
-                      return Container();
-                    }
-                  },
-                ),
-              ),
-              Container(
-                height: size.width * 0.22,
-                color: Colors.white,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 10, bottom: 10, top: 10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 48,
-                          child: TextField(
-                            controller: message,
-                            decoration: InputDecoration(
-                              contentPadding: EdgeInsets.only(left: 10),
-                              hintText: 'Type message...',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    Container(
+                      height: size.width * 0.22,
+                      // color: Colors.grey[200],
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            left: 10, bottom: 10, top: 10),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: TextField(
+                                  controller: message,
+                                  decoration: InputDecoration(
+                                    contentPadding: EdgeInsets.only(left: 10),
+                                    hintText: 'Type message...',
+                                    suffixIcon: GestureDetector(
+                                        onTap: () => getImage(),
+                                        child: Icon(Icons.image)),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                            Container(
+                              margin: EdgeInsets.only(left: 8, right: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: IconButton(
+                                onPressed: onSendMessage,
+                                icon: Icon(
+                                  Icons.send,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: onSendMessage,
-                        icon: Icon(Icons.send),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget messageView({size, required Map<String, dynamic> map}) {
-    return Container(
-      // width: size.width,
-      alignment: map['sendBy'] == auth.currentUser?.displayName
-          ? Alignment.centerRight
-          : Alignment.centerLeft,
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-        margin: EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          map['message'],
-          style: TextStyle(color: Colors.white, fontSize: 16),
-        ),
-      ),
+  Widget messageView(
+      {size,
+      required String messageId,
+      required Map<String, dynamic> map,
+      required BuildContext context}) {
+    // print('time :: ${map['time'].toString().split(',').first.split('(').last.split('seconds=').last}');
+    return map['type'] == 'text'
+        ? GestureDetector(
+            onLongPress: () {
+              // showDialog(
+              //   context: context,
+              //   builder: (context) {
+              //     return Dialog(
+              //       child: PopupMenuButton(
+              //         itemBuilder: (context) {
+              //           return [
+              //             PopupMenuItem(
+              //               onTap: () {
+              //                 firestore
+              //                     .collection('chatroom')
+              //                     .doc(chatRoomId)
+              //                     .collection('chats')
+              //                     .doc(messageId)
+              //                     .delete();
+              //               },
+              //               child: Text('Delete'),
+              //             ),
+              //           ];
+              //         },
+              //       ),
+              //     );
+              //   },
+              // );
+            },
+            child: Container(
+              // width: size.width,
+              alignment: map['sendBy'] == auth.currentUser?.displayName
+                  ? Alignment.centerRight
+                  : Alignment.centerLeft,
+              child: Container(
+                // padding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                margin: EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+                decoration: BoxDecoration(
+                  // color: map['sendBy'] == auth.currentUser?.displayName
+                  //     ? Colors.blue[200]
+                  //     : Colors.black,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: map['sendBy'] == auth.currentUser?.displayName
+                    ? Row(
+                        children: [
+                          Expanded(
+                            child: SentMessage(message: map['message']),
+                          ),
+                          SizedBox(
+                            width: 20,
+                            child: PopupMenuButton(
+                              padding: EdgeInsets.zero,
+                              itemBuilder: (context) {
+                                return [
+                                  PopupMenuItem(
+                                    padding: EdgeInsets.symmetric(horizontal: 12),
+                                    height: 18,
+                                    onTap: () {
+                                      firestore
+                                          .collection('chatroom')
+                                          .doc(chatRoomId)
+                                          .collection('chats')
+                                          .doc(messageId)
+                                          .delete();
+                                    },
+                                    child: Text('Delete'),
+                                  ),
+                                ];
+                              },
+                            ),
+                          )
+                        ],
+                      )
+                    : ReceivedMessage(message: map['message']),
+                // Column(
+                //   children: [
+                //     Text(
+                //       map['message'],
+                //       style: TextStyle(
+                //           color: map['sendBy'] == auth.currentUser?.displayName
+                //               ? Colors.black
+                //               : Colors.white,
+                //           fontSize: 16),
+                //     ),
+                //   ],
+                // ),
+              ),
+            ),
+          )
+        : GestureDetector(
+            // onLongPress: () {
+            //   FirebaseStorage.instance
+            //       .ref()
+            //       .child('image')
+            //       .child('${messageId}.jpg')
+            //       .delete();
+            //   firestore
+            //       .collection('chatroom')
+            //       .doc(chatRoomId)
+            //       .collection('chats')
+            //       .doc(messageId)
+            //       .delete();
+            // },
+            child: Row(
+              mainAxisAlignment: map['sendBy'] == auth.currentUser?.displayName
+                  ? MainAxisAlignment.end
+                  : MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: size.width * 0.4,
+                  alignment: map['sendBy'] == auth.currentUser?.displayName
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: map['message'] != ''
+                      ? GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      FullScreenImage(imageUrl: map['message']),
+                                ));
+                          },
+                          child: Container(
+                            height: size.height * 0.2,
+                            width: size.width * 0.4,
+                            margin: EdgeInsets.symmetric(
+                                vertical: 4, horizontal: 8),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.black),
+                            ),
+                            child: Image.network(
+                              map['message'],
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: CircularProgressIndicator(color: Colors.black),
+                        ),
+                ),
+                Visibility(
+                  visible: map['sendBy'] == auth.currentUser?.displayName,
+                  child: SizedBox(
+                    width: 20,
+                    child: PopupMenuButton(
+                      padding: EdgeInsets.zero,
+                      itemBuilder: (context) {
+                        return [
+                          PopupMenuItem(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            height: 18,
+                            onTap: () {
+                              FirebaseStorage.instance
+                                  .ref()
+                                  .child('image')
+                                  .child('${messageId}.jpg')
+                                  .delete();
+                              firestore
+                                  .collection('chatroom')
+                                  .doc(chatRoomId)
+                                  .collection('chats')
+                                  .doc(messageId)
+                                  .delete();
+                            },
+                            child: Text('Delete'),
+                          ),
+                        ];
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+  }
+}
+
+class FullScreenImage extends StatelessWidget {
+  final String imageUrl;
+
+  FullScreenImage({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(),
+      body: Center(child: Image.network(imageUrl)),
     );
   }
 }

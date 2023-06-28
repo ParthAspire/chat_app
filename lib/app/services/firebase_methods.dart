@@ -17,10 +17,15 @@ Future<User?> createAccount({
         .user;
     if (user != null) {
       user.updateDisplayName(name);
-      await firestore
-          .collection('users')
-          .doc(auth.currentUser?.uid)
-          .set({"name": name, "email": email, "status": "unavailable"});
+      await firestore.collection('users').doc(auth.currentUser?.uid).set(
+        {
+          "name": name,
+          "email": email,
+          "status": "unavailable",
+          "uid": auth.currentUser?.uid,
+          "lastMsg":'',
+        },
+      );
       return user;
     } else {
       print('user not created');
