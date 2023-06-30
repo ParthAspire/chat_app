@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:chat_app/app/screens/call_screen.dart';
 import 'package:chat_app/app/screens/chat/received_message_ui.dart';
 import 'package:chat_app/app/screens/chat/send_message_ui.dart';
+import 'package:chat_app/app/utils/image_const.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -125,6 +127,46 @@ class ChatRoom extends StatelessWidget {
               );
             },
           ),
+          actions: [
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CallScreen(
+                          userId: (auth.currentUser?.uid ?? '12').toString(),
+                          userName: (auth.currentUser?.displayName ?? 'name'),
+                          roomId: chatRoomId),
+                    ));
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Icon(
+                    Icons.video_call,
+                    color: Colors.green,
+                  ),
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CallScreen(
+                          userId: (auth.currentUser?.uid ?? '12').toString(),
+                          userName: (auth.currentUser?.displayName ?? 'name'),
+                          roomId: chatRoomId),
+                    ));
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Image.asset(liveStreamIcon),
+              ),
+            )
+          ],
           backgroundColor: Colors.black,
         ),
         body: auth.currentUser == null
@@ -136,6 +178,7 @@ class ChatRoom extends StatelessWidget {
                   children: [
                     Container(
                       height: MediaQuery.of(context).size.height * 0.8,
+                      margin: EdgeInsets.only(top: 10),
                       child: StreamBuilder(
                         stream: firestore
                             .collection('chatroom')
@@ -285,7 +328,8 @@ class ChatRoom extends StatelessWidget {
                               itemBuilder: (context) {
                                 return [
                                   PopupMenuItem(
-                                    padding: EdgeInsets.symmetric(horizontal: 12),
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 12),
                                     height: 18,
                                     onTap: () {
                                       firestore

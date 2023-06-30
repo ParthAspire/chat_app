@@ -1,12 +1,12 @@
 import 'package:chat_app/app/screens/chat_room.dart';
 import 'package:chat_app/app/screens/login_screen.dart';
-import 'package:chat_app/app/screens/video_play_screen.dart';
 import 'package:chat_app/app/services/firebase_methods.dart';
 import 'package:chat_app/app/utils/image_const.dart';
 import 'package:chat_app/app/widgets/common_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
 import '../services/social_media_services.dart';
 
@@ -27,10 +27,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   List<Map<String, dynamic>> usersList = [];
 
+  @override
+  void initState() {
+    getAllUsers();
+    WidgetsBinding.instance.addObserver(this);
+
+    onUserLogin();
+
+    super.initState();
+    setUserStatus('Online');
+  }
+
+  /// on App's user login
+  void onUserLogin() {
+    /// 1.2.1. initialized ZegoUIKitPrebuiltCallInvitationService
+    /// when app's user is logged in or re-logged in
+    /// We recommend calling this method as soon as the user logs in to your app.
+    ZegoUIKitPrebuiltCallInvitationService().init(
+      appID: 867192200 /*input your AppID*/,
+      appSign:
+          'ef0ba35aaae21a68351e7ad4a02e2811435c3485ac83d6edaca08dd1bec5a91e' /*input your AppSign*/,
+      userID: auth.currentUser?.uid ?? '1',
+      userName: auth.currentUser?.displayName ?? 'user',
+      plugins: [],
+    );
+  }
+
+  /// on App's user logout
+  void onUserLogout() {
+    /// 1.2.2. de-initialization ZegoUIKitPrebuiltCallInvitationService
+    /// when app's user is logged out
+    ZegoUIKitPrebuiltCallInvitationService().uninit();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      setUserStatus('Online');
+    } else {
+      setUserStatus('Offline');
+    }
+    super.didChangeAppLifecycleState(state);
+  }
+
   //get only last message of a specific chat
   Future<String?> getLastMessage(String roomId) async {
     QueryDocumentSnapshot? lastMessage;
-    await FirebaseFirestore.instance        .collection('chatroom')
+    await FirebaseFirestore.instance
+        .collection('chatroom')
         .doc(roomId)
         .collection('chats')
         .orderBy('time', descending: true)
@@ -40,9 +84,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       lastMessage = value.docs.firstOrNull;
       print('last msg ::: ${lastMessage?.get('message')}');
       firestore.collection('users').doc(auth.currentUser?.uid).update({
-        'lastMsg':lastMessage?.get('message'),
+        'lastMsg': lastMessage?.get('message'),
       });
-      firestore.collection('users').doc(auth.currentUser?.uid).get().then((value) {
+      firestore
+          .collection('users')
+          .doc(auth.currentUser?.uid)
+          .get()
+          .then((value) {
         print('firestore :: ${value.data()}');
       });
       return lastMessage?.get('message');
@@ -104,24 +152,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return usersList;
   }
 
-  @override
-  void initState() {
-    getAllUsers();
-    WidgetsBinding.instance.addObserver(this);
-    super.initState();
-    setUserStatus('Online');
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      setUserStatus('Online');
-    } else {
-      setUserStatus('Offline');
-    }
-    super.didChangeAppLifecycleState(state);
-  }
-
   setUserStatus(String status) async {
     await firestore
         .collection('users')
@@ -139,15 +169,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         appBar: AppBar(
           title: Text('Welcome ${auth.currentUser?.displayName ?? ''}'),
           actions: [
-            // IconButton(
-            //     onPressed: () {
-            //       Navigator.push(
-            //           context,
-            //           MaterialPageRoute(
-            //             builder: (context) => VideoPlayScreen(),
-            //           ));
-            //     },
-            //     icon: Icon(Icons.skip_next)),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               padding: EdgeInsets.symmetric(horizontal: 8),
@@ -286,13 +307,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             map['status'] =
                                 snapshot.data?.docs[index]['status'];
                             map['uid'] = snapshot.data?.docs[index]['uid'];
-                            map['lastMsg'] = snapshot.data?.docs[index]['lastMsg'];
+                            map['lastMsg'] =
+                                snapshot.data?.docs[index]['lastMsg'];
                             print('map :: ${map}');
                             return chatTile(map);
                           },
                         );
                       }
-                      return CircularProgressIndicator();
+                      return Container();
                     },
                   ),
                   // ListView.builder(
@@ -316,43 +338,45 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   chatTile(Map<String, dynamic> userMap) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Visibility(
-          visible: userMap['name'] != auth.currentUser?.displayName,
-          child: ListTile(
-            onTap: () {
-              String roomId = getChatRoomId(
-                user1: auth.currentUser?.displayName ?? '',
-                user2: userMap['name'],
-              );
-              print('userMap :: ${userMap}');
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      ChatRoom(chatRoomId: roomId, userMap: userMap),
-                ),
-              );
-            },
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: BorderSide(color: Colors.black),
-            ),
-            visualDensity: VisualDensity(vertical: 0, horizontal: -4),
-            contentPadding: EdgeInsets.symmetric(horizontal: 10),
-            trailing: Icon(Icons.message, color: Colors.black),
-            leading: Icon(Icons.account_box, size: 30, color: Colors.black),
-            title: Text(userMap['name']),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(userMap['email']),
-                // Text(userMap['lastMsg']??''),
-              ],
-            ),
+      padding: userMap['name'] != auth.currentUser?.displayName
+          ? EdgeInsets.symmetric(vertical: 6, horizontal: 16)
+          : EdgeInsets.zero,
+      child: Visibility(
+        visible: userMap['name'] != auth.currentUser?.displayName,
+        child: ListTile(
+          onTap: () {
+            String roomId = getChatRoomId(
+              user1: auth.currentUser?.displayName ?? '',
+              user2: userMap['name'],
+            );
+            print('userMap :: ${userMap}');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    ChatRoom(chatRoomId: roomId, userMap: userMap),
+              ),
+            );
+          },
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: Colors.black),
           ),
+          visualDensity: VisualDensity(vertical: 0, horizontal: -4),
+          contentPadding: EdgeInsets.symmetric(horizontal: 10),
+          trailing: Icon(Icons.message, color: Colors.black),
+          leading: CircleAvatar(
+            backgroundColor: Colors.black,
+            child: Icon(Icons.person, size: 30, color: Colors.white),
+          ),
+          title: Text(userMap['name']),
+          // subtitle: Column(
+          //   crossAxisAlignment: CrossAxisAlignment.start,
+          //   children: [
+          //     Text(userMap['email']),
+          //     // Text(userMap['lastMsg']??''),
+          //   ],
+          // ),
         ),
       ),
     );
