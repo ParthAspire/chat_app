@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 /// create user on firebase
 Future<User?> createAccount({
@@ -10,12 +11,15 @@ Future<User?> createAccount({
 }) async {
   FirebaseFirestore firestore = FirebaseFirestore.instance;
   FirebaseAuth auth = FirebaseAuth.instance;
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   try {
     User? user = (await auth.createUserWithEmailAndPassword(
             email: email, password: password))
         .user;
     if (user != null) {
+      // Get the device token
+      String? deviceToken = await _firebaseMessaging.getToken();
       user.updateDisplayName(name);
       await firestore.collection('users').doc(auth.currentUser?.uid).set(
         {
@@ -23,7 +27,8 @@ Future<User?> createAccount({
           "email": email,
           "status": "unavailable",
           "uid": auth.currentUser?.uid,
-          "lastMsg":'',
+          "lastMsg": '',
+          "deviceToken": deviceToken,
         },
       );
       return user;
@@ -67,4 +72,16 @@ Future logOut() async {
   } catch (e) {
     print(e);
   }
+}
+
+final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+// Send a notification
+Future<void> sendNotification(String deviceToken, String message) async {
+  await _firebaseMessaging.sendMessage(
+    messageId: deviceToken,to: deviceToken,messageType: 'Text',
+    data: {
+      'title': 'New Message',
+      'body': message,
+    },
+  );
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:chat_app/app/screens/call_screen.dart';
 import 'package:chat_app/app/screens/chat/received_message_ui.dart';
 import 'package:chat_app/app/screens/chat/send_message_ui.dart';
+import 'package:chat_app/app/services/firebase_methods.dart';
 import 'package:chat_app/app/utils/image_const.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,6 +11,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+
+import 'video_play_screen.dart';
 
 class ChatRoom extends StatelessWidget {
   final Map<String, dynamic> userMap;
@@ -75,6 +78,7 @@ class ChatRoom extends StatelessWidget {
     }
   }
 
+  String status = 'Offline';
   onSendMessage() async {
     try {
       if (message.text.trim().isNotEmpty) {
@@ -90,6 +94,14 @@ class ChatRoom extends StatelessWidget {
             .doc(chatRoomId)
             .collection('chats')
             .add(messages);
+
+        print('status :: $status');
+        if(status == 'Offline'){
+          print('deviceToken ::${userMap['deviceToken']}');
+          sendNotification(userMap['deviceToken'], 'message.text.trim()');
+        }else{
+          print('online :: $status');
+        }
       } else {}
     } catch (e) {
       print(e);
@@ -111,6 +123,7 @@ class ChatRoom extends StatelessWidget {
             stream:
                 firestore.collection('users').doc(userMap['uid']).snapshots(),
             builder: (context, snapshot) {
+              status = snapshot.data?['status']??'Offline';
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -155,10 +168,7 @@ class ChatRoom extends StatelessWidget {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => CallScreen(
-                          userId: (auth.currentUser?.uid ?? '12').toString(),
-                          userName: (auth.currentUser?.displayName ?? 'name'),
-                          roomId: chatRoomId),
+                      builder: (context) => VideoPlayScreen(),
                     ));
               },
               child: Padding(
