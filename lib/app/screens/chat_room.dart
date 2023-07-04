@@ -4,6 +4,7 @@ import 'package:chat_app/app/screens/call_screen.dart';
 import 'package:chat_app/app/screens/chat/received_message_ui.dart';
 import 'package:chat_app/app/screens/chat/send_message_ui.dart';
 import 'package:chat_app/app/services/firebase_methods.dart';
+import 'package:chat_app/app/services/notification_services.dart';
 import 'package:chat_app/app/utils/image_const.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,8 +18,9 @@ import 'video_play_screen.dart';
 class ChatRoom extends StatelessWidget {
   final Map<String, dynamic> userMap;
   final String chatRoomId;
+  final String userName ;
 
-  ChatRoom({required this.chatRoomId, required this.userMap});
+  ChatRoom({required this.chatRoomId, required this.userMap,required this.userName});
 
   TextEditingController message = TextEditingController();
   FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -79,6 +81,7 @@ class ChatRoom extends StatelessWidget {
   }
 
   String status = 'Offline';
+
   onSendMessage() async {
     try {
       if (message.text.trim().isNotEmpty) {
@@ -88,7 +91,6 @@ class ChatRoom extends StatelessWidget {
           "type": "text",
           'time': FieldValue.serverTimestamp(),
         };
-        message.clear();
         await firestore
             .collection('chatroom')
             .doc(chatRoomId)
@@ -96,12 +98,15 @@ class ChatRoom extends StatelessWidget {
             .add(messages);
 
         print('status :: $status');
-        if(status == 'Offline'){
+        if (status == 'Offline') {
           print('deviceToken ::${userMap['deviceToken']}');
-          sendNotification(userMap['deviceToken'], 'message.text.trim()');
-        }else{
+          // NotificationServices().sendNotification(
+          //     userMap['deviceToken'], message.text.trim(), userName);
+          sendNotificationUsingFirebase(  userMap['deviceToken'], message.text.trim(), userName);
+        } else {
           print('online :: $status');
         }
+        message.clear();
       } else {}
     } catch (e) {
       print(e);
@@ -123,7 +128,7 @@ class ChatRoom extends StatelessWidget {
             stream:
                 firestore.collection('users').doc(userMap['uid']).snapshots(),
             builder: (context, snapshot) {
-              status = snapshot.data?['status']??'Offline';
+              status = snapshot.data?['status'] ?? 'Offline';
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

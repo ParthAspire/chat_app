@@ -309,7 +309,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             map['uid'] = snapshot.data?.docs[index]['uid'];
                             map['lastMsg'] =
                                 snapshot.data?.docs[index]['lastMsg'];
-                            map['deviceToken'] = snapshot.data?.docs[index]['deviceToken'];
+                            map['deviceToken'] =
+                                snapshot.data?.docs[index]['deviceToken'];
                             print('map :: ${map}');
                             return chatTile(map);
                           },
@@ -354,8 +355,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    ChatRoom(chatRoomId: roomId, userMap: userMap),
+                builder: (context) => ChatRoom(
+                    chatRoomId: roomId,
+                    userMap: userMap,
+                    userName: auth.currentUser?.displayName ?? ''),
               ),
             );
           },

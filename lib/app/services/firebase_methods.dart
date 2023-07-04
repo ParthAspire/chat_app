@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
 
 /// create user on firebase
 Future<User?> createAccount({
@@ -74,14 +79,47 @@ Future logOut() async {
   }
 }
 
-final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 // Send a notification
-Future<void> sendNotification(String deviceToken, String message) async {
-  await _firebaseMessaging.sendMessage(
-    messageId: deviceToken,to: deviceToken,messageType: 'Text',
-    data: {
-      'title': 'New Message',
-      'body': message,
+Future<void> sendNotificationUsingFirebase(
+    String deviceToken, String message, String senderName) async {
+  await http
+      .post(
+    Uri.parse('https://fcm.googleapis.com/fcm/send'),
+    headers: <String, String>{
+      'Content-Type': 'application/json',
+      'Authorization':
+          'key=AAAAQOfLhSo:APA91bE2QthI8d8lFj8ExfIKL9mTahDfWU0YEYhAXR8cg4nSYaUcs9lDFZKOaD7fcJPpKiDBRs3Qn8f0QtCUDxAkD7DI-6keItusbS_YUTywI88IArssXu-qnmUvTzAz1yyxqot-gV0w',
     },
-  );
+    body: jsonEncode(
+      <String, dynamic>{
+        'notification': <String, dynamic>{
+          'body': message,
+          'title': senderName,
+        },
+        'priority': 'high',
+        'data': <String, dynamic>{
+          'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+          'id': '1',
+          'status': 'done',
+          'title': senderName,
+          'body': message,
+        },
+        'to': deviceToken,
+      },
+    ),
+  )
+      .then((value) {
+    print('value ::${value.body}');
+  });
+  // await _firebaseMessaging.sendMessage(
+  //   // messageId: deviceToken,
+  //   // to: deviceToken,
+  //   messageType: 'Text',
+  //   data: {
+  //     'title': 'New Message',
+  //     'body': message,
+  //   },
+  // ).catchError((e) {
+  //   print('exception :: $e');
+  // });
 }

@@ -22,6 +22,8 @@ dependencies:
   uuid: ^3.0.7
   zego_uikit_prebuilt_call: ^3.8.0
   firebase_messaging: ^14.6.4
+  awesome_notifications: ^0.7.4+1
+  http:
   video_player: ^2.7.0
 
 dev_dependencies:
