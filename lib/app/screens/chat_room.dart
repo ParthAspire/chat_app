@@ -4,7 +4,6 @@ import 'package:chat_app/app/screens/call_screen.dart';
 import 'package:chat_app/app/screens/chat/received_message_ui.dart';
 import 'package:chat_app/app/screens/chat/send_message_ui.dart';
 import 'package:chat_app/app/services/firebase_methods.dart';
-import 'package:chat_app/app/services/notification_services.dart';
 import 'package:chat_app/app/utils/image_const.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,35 +11,46 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 
 import 'video_play_screen.dart';
 
 class ChatRoom extends StatelessWidget {
   final Map<String, dynamic> userMap;
   final String chatRoomId;
-  final String userName ;
+  final String userName;
 
-  ChatRoom({required this.chatRoomId, required this.userMap,required this.userName});
+  ChatRoom(
+      {required this.chatRoomId,
+      required this.userMap,
+      required this.userName});
 
   TextEditingController message = TextEditingController();
   FirebaseFirestore firestore = FirebaseFirestore.instance;
   FirebaseAuth auth = FirebaseAuth.instance;
 
   File? imageFile;
+  List<File> selectedImages = [];
 
   getImage() async {
     ImagePicker picker = ImagePicker();
-
-    await picker.pickImage(source: ImageSource.gallery).then((img) {
-      if (img != null) {
-        imageFile = File(img.path);
-        uploadImage();
-      }
-    });
+    await picker.pickMultiImage().then(
+      (value) {
+        for (var iData in value) {
+          uploadImage(File(iData.path));
+        }
+      },
+    );
+    // await picker.pickImage(source: ImageSource.gallery).then((img) {
+    //   if (img != null) {
+    //     imageFile = File(img.path);
+    //     uploadImage();
+    //   }
+    // });
   }
 
-  Future uploadImage() async {
-    String fileName = Uuid().v1();
+  Future uploadImage(imageFile) async {
+    String fileName = const Uuid().v1();
     int status = 1;
 
     await firestore
@@ -102,7 +112,8 @@ class ChatRoom extends StatelessWidget {
           print('deviceToken ::${userMap['deviceToken']}');
           // NotificationServices().sendNotification(
           //     userMap['deviceToken'], message.text.trim(), userName);
-          sendNotificationUsingFirebase(  userMap['deviceToken'], message.text.trim(), userName);
+          sendNotificationUsingFirebase(
+              userMap['deviceToken'], message.text.trim(), userName);
         } else {
           print('online :: $status');
         }
@@ -133,14 +144,19 @@ class ChatRoom extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(snapshot.data?['name'] ?? ''),
-                  Text(
-                    snapshot.data?['status'] ?? '',
-                    style: TextStyle(
-                        color: snapshot.data?['status'] == 'Online'
-                            ? Colors.green
-                            : Colors.red,
-                        fontSize: 12),
-                  ),
+                  snapshot.data?['isTyping'] == true
+                      ? Text(
+                          'Typing...',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        )
+                      : Text(
+                          snapshot.data?['status'] ?? '',
+                          style: TextStyle(
+                              color: snapshot.data?['status'] == 'Online'
+                                  ? Colors.green
+                                  : Colors.red,
+                              fontSize: 12),
+                        ),
                 ],
               );
             },
@@ -157,8 +173,8 @@ class ChatRoom extends StatelessWidget {
                           roomId: chatRoomId),
                     ));
               },
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
+              child: const Padding(
+                padding: EdgeInsets.all(8.0),
                 child: CircleAvatar(
                   backgroundColor: Colors.white,
                   child: Icon(
@@ -173,7 +189,7 @@ class ChatRoom extends StatelessWidget {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => VideoPlayScreen(),
+                      builder: (context) => const VideoPlayScreen(),
                     ));
               },
               child: Padding(
@@ -185,7 +201,7 @@ class ChatRoom extends StatelessWidget {
           backgroundColor: Colors.black,
         ),
         body: auth.currentUser == null
-            ? Center(
+            ? const Center(
                 child: CircularProgressIndicator(color: Colors.black),
               )
             : SingleChildScrollView(
@@ -193,7 +209,7 @@ class ChatRoom extends StatelessWidget {
                   children: [
                     Container(
                       height: MediaQuery.of(context).size.height * 0.8,
-                      margin: EdgeInsets.only(top: 10),
+                      margin: const EdgeInsets.only(top: 10),
                       child: StreamBuilder(
                         stream: firestore
                             .collection('chatroom')
@@ -206,7 +222,7 @@ class ChatRoom extends StatelessWidget {
                           if (snapshot.data != null) {
                             return ListView.builder(
                               reverse: true,
-                              padding: EdgeInsets.only(top: 10),
+                              padding: const EdgeInsets.only(top: 10),
                               itemCount: snapshot.data?.docs.reversed.length,
                               itemBuilder: (context, index) {
                                 Map<String, dynamic> map =
@@ -242,30 +258,46 @@ class ChatRoom extends StatelessWidget {
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: TextField(
-                                  controller: message,
-                                  decoration: InputDecoration(
-                                    contentPadding: EdgeInsets.only(left: 10),
-                                    hintText: 'Type message...',
-                                    suffixIcon: GestureDetector(
-                                        onTap: () => getImage(),
-                                        child: Icon(Icons.image)),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
+                                child: Focus(
+                                  onFocusChange: (value) {
+                                    if (value) {
+                                      firestore
+                                          .collection('users')
+                                          .doc(auth.currentUser?.uid)
+                                          .update({'isTyping': true});
+                                    } else {
+                                      firestore
+                                          .collection('users')
+                                          .doc(auth.currentUser?.uid)
+                                          .update({'isTyping': false});
+                                    }
+                                  },
+                                  child: TextField(
+                                    controller: message,
+                                    decoration: InputDecoration(
+                                      contentPadding:
+                                          const EdgeInsets.only(left: 10),
+                                      hintText: 'Type message...',
+                                      suffixIcon: GestureDetector(
+                                          onTap: () => getImage(),
+                                          child: const Icon(Icons.image)),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
                             Container(
-                              margin: EdgeInsets.only(left: 8, right: 8),
+                              margin: const EdgeInsets.only(left: 8, right: 8),
                               decoration: BoxDecoration(
                                 color: Colors.black54,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: IconButton(
                                 onPressed: onSendMessage,
-                                icon: Icon(
+                                icon: const Icon(
                                   Icons.send,
                                   color: Colors.white,
                                 ),
@@ -323,7 +355,7 @@ class ChatRoom extends StatelessWidget {
                   : Alignment.centerLeft,
               child: Container(
                 // padding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                margin: EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+                margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
                 decoration: BoxDecoration(
                   // color: map['sendBy'] == auth.currentUser?.displayName
                   //     ? Colors.blue[200]
@@ -334,7 +366,8 @@ class ChatRoom extends StatelessWidget {
                     ? Row(
                         children: [
                           Expanded(
-                            child: SentMessage(message: map['message']),
+                            child: SentMessage(
+                                message: map['message'], date: map['time']),
                           ),
                           SizedBox(
                             width: 20,
@@ -343,8 +376,8 @@ class ChatRoom extends StatelessWidget {
                               itemBuilder: (context) {
                                 return [
                                   PopupMenuItem(
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
                                     height: 18,
                                     onTap: () {
                                       firestore
@@ -354,7 +387,7 @@ class ChatRoom extends StatelessWidget {
                                           .doc(messageId)
                                           .delete();
                                     },
-                                    child: Text('Delete'),
+                                    child: const Text('Delete'),
                                   ),
                                 ];
                               },
@@ -362,7 +395,8 @@ class ChatRoom extends StatelessWidget {
                           )
                         ],
                       )
-                    : ReceivedMessage(message: map['message']),
+                    : ReceivedMessage(
+                        message: map['message'], date: map['time']),
                 // Column(
                 //   children: [
                 //     Text(
@@ -412,22 +446,41 @@ class ChatRoom extends StatelessWidget {
                                       FullScreenImage(imageUrl: map['message']),
                                 ));
                           },
-                          child: Container(
-                            height: size.height * 0.2,
-                            width: size.width * 0.4,
-                            margin: EdgeInsets.symmetric(
-                                vertical: 4, horizontal: 8),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.black),
-                            ),
-                            child: Image.network(
-                              map['message'],
-                              fit: BoxFit.cover,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Container(
+                                height: size.height * 0.2,
+                                width: size.width * 0.4,
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 4, horizontal: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.black),
+                                ),
+                                child: Image.network(
+                                  map['message'],
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 2, horizontal: 8),
+                                child: Text(
+                                  DateFormat('hh:mm a').format(
+                                      (map['date'] ?? Timestamp.now())
+                                          .toDate()),
+                                  // hh:mm a, d MMM - yyyy
+                                  style: const TextStyle(
+                                      color: Colors.black,
+                                      fontFamily: 'Monstserrat',
+                                      fontSize: 10),
+                                ),
+                              ),
+                            ],
                           ),
                         )
-                      : Padding(
-                          padding: const EdgeInsets.all(8.0),
+                      : const Padding(
+                          padding: EdgeInsets.all(8.0),
                           child: CircularProgressIndicator(color: Colors.black),
                         ),
                 ),
@@ -440,7 +493,7 @@ class ChatRoom extends StatelessWidget {
                       itemBuilder: (context) {
                         return [
                           PopupMenuItem(
-                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             height: 18,
                             onTap: () {
                               FirebaseStorage.instance
@@ -455,7 +508,7 @@ class ChatRoom extends StatelessWidget {
                                   .doc(messageId)
                                   .delete();
                             },
-                            child: Text('Delete'),
+                            child: const Text('Delete'),
                           ),
                         ];
                       },

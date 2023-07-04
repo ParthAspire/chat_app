@@ -73,7 +73,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   createAccount(
                           name: name.text,
                           email: email.text,
-                          password: password.text)
+                          password: password.text,profileUrl: '')
                       .then(
                     (value) {
                       if(value!=null){

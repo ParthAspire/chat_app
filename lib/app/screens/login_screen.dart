@@ -36,68 +36,69 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           body: Column(
             children: [
-              /// email textfield
-              Padding(
-                padding: const EdgeInsets.all(18.0),
-                child: TextField(
-                    controller: email,
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.email),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    )),
-              ),
+              SvgPicture.asset(loginPageImg, height: 500),
+              // /// email textfield
+              // Padding(
+              //   padding: const EdgeInsets.all(18.0),
+              //   child: TextField(
+              //       controller: email,
+              //       decoration: InputDecoration(
+              //         prefixIcon: Icon(Icons.email),
+              //         border: OutlineInputBorder(
+              //           borderRadius: BorderRadius.circular(8),
+              //         ),
+              //       )),
+              // ),
+              //
+              // /// password textfield
+              // Padding(
+              //   padding: const EdgeInsets.all(18.0),
+              //   child: TextField(
+              //       controller: password,
+              //       decoration: InputDecoration(
+              //         prefixIcon: Icon(Icons.lock),
+              //         border: OutlineInputBorder(
+              //           borderRadius: BorderRadius.circular(8),
+              //         ),
+              //       )),
+              // ),
 
-              /// password textfield
-              Padding(
-                padding: const EdgeInsets.all(18.0),
-                child: TextField(
-                    controller: password,
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.lock),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    )),
-              ),
-
-              commonButton(
-                onPress: () {
-                  login(email: email.text, password: password.text).then(
-                    (value) {
-                      if (value != null) {
-                        setState(() {
-                          print('values ::: ${value.email}');
-                        });
-                        ;
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => HomeScreen(),
-                          ),
-                          (route) => false,
-                        );
-                      }
-                    },
-                  );
-                },
-                buttonTxt: 'Login'.toUpperCase(),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.all(18.0),
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SignUpScreen(),
-                        ));
-                  },
-                  child: Text('Create Account'.toUpperCase()),
-                ),
-              ),
+              // commonButton(
+              //   onPress: () {
+              //     login(email: email.text, password: password.text).then(
+              //       (value) {
+              //         if (value != null) {
+              //           setState(() {
+              //             print('values ::: ${value.email}');
+              //           });
+              //           ;
+              //           Navigator.pushAndRemoveUntil(
+              //             context,
+              //             MaterialPageRoute(
+              //               builder: (context) => HomeScreen(),
+              //             ),
+              //             (route) => false,
+              //           );
+              //         }
+              //       },
+              //     );
+              //   },
+              //   buttonTxt: 'Login'.toUpperCase(),
+              // ),
+              //
+              // Padding(
+              //   padding: const EdgeInsets.all(18.0),
+              //   child: GestureDetector(
+              //     onTap: () {
+              //       Navigator.push(
+              //           context,
+              //           MaterialPageRoute(
+              //             builder: (context) => SignUpScreen(),
+              //           ));
+              //     },
+              //     child: Text('Create Account'.toUpperCase()),
+              //   ),
+              // ),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -129,7 +130,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Navigator.pushAndRemoveUntil(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => HomeScreen(),
+                                          builder: (context) =>
+                                              const HomeScreen(),
                                         ),
                                         (route) => false);
                                   }
@@ -143,14 +145,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                       email: gmailData.currentUser?.email ??
                                           'user@gmail.com',
                                       password: gmailData.currentUser?.email ??
-                                          'user@gmail.com')
+                                          'user@gmail.com',
+                                      profileUrl:
+                                          gmailData.currentUser?.photoUrl ?? '')
                                   .then(
                                 (value) {
                                   if (value != null) {
                                     Navigator.pushAndRemoveUntil(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => HomeScreen(),
+                                          builder: (context) =>
+                                              const HomeScreen(),
                                         ),
                                         (route) => false);
                                   }
@@ -162,12 +167,34 @@ class _LoginScreenState extends State<LoginScreen> {
                       );
                     },
                     child: Container(
-                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 8),
                       decoration: BoxDecoration(
+                        color: Colors.black,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.black),
+                        // border: Border.all(color: Colors.black),
                       ),
-                      child: SvgPicture.asset(googleIcon),
+                      child: Row(
+                        children: [
+                          Container(
+                              margin: EdgeInsets.only(left: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: SvgPicture.asset(googleIcon),
+                              height: 40,
+                              width: 40),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20),
+                            child: Text(
+                              'Continue with Google',
+                              style:
+                                  TextStyle(fontSize: 20, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 ],

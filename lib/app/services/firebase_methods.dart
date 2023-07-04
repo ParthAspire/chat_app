@@ -13,6 +13,7 @@ Future<User?> createAccount({
   required String name,
   required String email,
   required String password,
+  required String profileUrl,
 }) async {
   FirebaseFirestore firestore = FirebaseFirestore.instance;
   FirebaseAuth auth = FirebaseAuth.instance;
@@ -26,14 +27,17 @@ Future<User?> createAccount({
       // Get the device token
       String? deviceToken = await _firebaseMessaging.getToken();
       user.updateDisplayName(name);
+      user.updatePhotoURL(profileUrl);
       await firestore.collection('users').doc(auth.currentUser?.uid).set(
         {
           "name": name,
           "email": email,
+          "profileUrl":profileUrl,
           "status": "unavailable",
           "uid": auth.currentUser?.uid,
           "lastMsg": '',
           "deviceToken": deviceToken,
+          "isTyping":false,
         },
       );
       return user;
